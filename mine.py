@@ -71,3 +71,65 @@ order_details = pd.merge(
 
 # delete (redundant now) dataframes，删除op_train, 因为信息已经合并到order_details
 del op_train
+
+# update by small portions, 不太懂这一块，question asked
+for i in range(len(indexes)-1):
+    order_details = pd.concat(
+        [   
+            order_details,
+            pd.merge(left=pd.merge(
+                            left=op_prior.loc[indexes[i]:indexes[i+1], :],
+                            right=goods[['product_id', 
+                                         'aisle_id', 
+                                         'department_id' ]].apply(partial(pd.to_numeric, 
+                                                                          errors='ignore', 
+                                                                          downcast='integer')),
+                            how='left',
+                            on='product_id'
+                            ),
+                     right=orders, 
+                     how='left', 
+                     on='order_id'
+                ) #.apply(partial(pd.to_numeric, errors='ignore', downcast='integer'))
+        ]
+    )
+        
+print('Datafame length: {}'.format(order_details.shape[0]))
+print('Memory consumption: {:.2f} Mb'.format(sum(order_details.memory_usage(index=True, 
+                                                                         deep=True) / 2**20)))
+# check dtypes to see if we use memory effectively
+print(order_details.dtypes)
+
+# make sure we didn't forget to retain test dataset :D
+test_orders = orders[orders.eval_set == 'test']
+
+# delete (redundant now) dataframes
+del op_prior, orders
+
+test_history = order_details[(order_details.user_id.isin(test_orders.user_id))]
+last_orders = test_history.groupby('user_id')['order_number'].max()
+
+
+#Repeat Last Order (Reordered Products Only)
+def get_last_orders_reordered():
+    t = pd.merge(
+            left=pd.merge(
+                    left=last_orders.reset_index(),
+                    right=test_history[test_history.reordered == 1],
+                    how='left',
+                    on=['user_id', 'order_number']
+                )[['user_id', 'product_id']],    #left table是test里曾今reorder过的，取user id, product id两个变量
+            right=test_orders[['user_id', 'order_id']],
+            how='left',
+            on='user_id'
+        )
+    t = t.fillna(-1).groupby('order_id')['product_id'].apply(lambda x: ' '.join([str(int(e)) for e in set(x)]) 
+                                                  ).reset_index().replace(to_replace='-1', 
+                                                                          value='None')
+    t.columns = ['order_id', 'products']
+    return t
+
+# save submission
+get_last_orders_reordered().to_csv('less_dumb_subm_last_order_reordered_only.csv', 
+                         encoding='utf-8', 
+                         index=False)
