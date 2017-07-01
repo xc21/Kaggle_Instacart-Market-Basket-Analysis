@@ -22,21 +22,35 @@ warnings.filterwarnings('ignore') # silence annoying warnings
 
 
 
-#explorative analysis
+#data loading数据导入
 # products
-products = pd.read_csv('C:/Users/Xun Cao/Desktop/kaggle/input/products.csv', engine='c')
-print('Total products: {}'.format(products.shape[0]))
-products.head(5)
 
-#same for other csv 
-#try orders
-orders = pd.read_csv('C:/Users/Xun Cao/Desktop/kaggle/input/orders.csv', engine='c')
-print('Total orders: {}'.format(orders.shape[0]))
-orders.head(5)
 
-#combine products, aisles and deparment into one dataframe
-departments = pd.read_csv('C:/Users/Xun Cao/Desktop/kaggle/input/departments.csv', engine='c')
-aisles = pd.read_csv('C:/Users/Xun Cao/Desktop/kaggle/input/aisles.csv', engine='c')
+#load training data set
+op_train = pd.read_csv('C:/Users/caoxun/Box Sync/kaggle/input/order_products__train.csv', engine='c', 
+                       dtype={'order_id': np.int32, 'product_id': np.int32, 
+                              'add_to_cart_order': np.int16, 'reordered': np.int8})
+
+#load testing data set
+test = pd.read_csv('C:/Users/caoxun/Box Sync/kaggle/input/sample_submission.csv', engine='c')
+
+#prior dataset
+op_prior = pd.read_csv('C:/Users/caoxun/Box Sync/kaggle/input/order_products__prior.csv', engine='c', 
+                       dtype={'order_id': np.int32, 
+                              'product_id': np.int32, 
+                              'add_to_cart_order': np.int16, 
+                              'reordered': np.int8})
+# orders
+orders = pd.read_csv('C:/Users/caoxun/Box Sync/kaggle/input/orders.csv', engine='c', dtype={'order_id': np.int32, 
+                                                           'user_id': np.int32, 
+                                                           'order_number': np.int32, 
+                                                           'order_dow': np.int8, 
+                                                           'order_hour_of_day': np.int8, 
+                                                           'days_since_prior_order': np.float16})
+products = pd.read_csv('C:/Users/caoxun/Box Sync/kaggle/input/products.csv', engine='c')
+departments = pd.read_csv('C:/Users/caoxun/Box Sync/kaggle/input/departments.csv', engine='c')
+aisles = pd.read_csv('C:/Users/caoxun/Box Sync/kaggle/input/departments.csv', engine='c')
+
 
 # combine aisles, departments and products (left joined to products)
 goods = pd.merge(left=pd.merge(left=products, right=departments, how='left'), right=aisles, how='left')
@@ -45,36 +59,9 @@ goods.product_name = goods.product_name.str.replace(' ', '_').str.lower()
 print(goods.info())
 goods.head()
 
-#load training data set
-op_train = pd.read_csv('C:/Users/Xun Cao/Desktop/kaggle/input/order_products__train.csv', engine='c', 
-                       dtype={'order_id': np.int32, 'product_id': np.int32, 
-                              'add_to_cart_order': np.int16, 'reordered': np.int8})
-print('Total ordered products(train): {}'.format(op_train.shape[0]))
-op_train.head(10)
-
-#load testing data set
-test = pd.read_csv('C:/Users/Xun Cao/Desktop/kaggle/input/sample_submission.csv', engine='c')
-
-#prior dataset
-op_prior = pd.read_csv('C:/Users/Xun Cao/Desktop/kaggle/input/order_products__prior.csv', engine='c', 
-                       dtype={'order_id': np.int32, 
-                              'product_id': np.int32, 
-                              'add_to_cart_order': np.int16, 
-                              'reordered': np.int8})
-# orders
-orders = pd.read_csv('C:/Users/Xun Cao/Desktop/kaggle/input/orders.csv', engine='c', dtype={'order_id': np.int32, 
-                                                           'user_id': np.int32, 
-                                                           'order_number': np.int32, 
-                                                           'order_dow': np.int8, 
-                                                           'order_hour_of_day': np.int8, 
-                                                           'days_since_prior_order': np.float16})
-
-#Combine (orders, order details, product hierarchy) into 1 dataframe order_details
-
-
 # merge train and prior together iteratively, to fit into 8GB kernel RAM
 # split df indexes into parts
-indexes = np.linspace(0, len(op_prior), num=10, dtype=np.int32)
+indexes = np.linspace(0, len(op_prior), num=10, dtype=np.int32) #把prior orders分成十块
 
 # initialize it with train dataset
 order_details = pd.merge(
