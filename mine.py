@@ -58,6 +58,20 @@ order_details = pd.merge(
 
 # add order hierarchy, 将order_detail(前一步已合并的)与good(商品部分)合并，合并顾客与商品, two sides combined
 # 以上 以下两个合并部分，均只保留顾客/产品的id信息而不加入id对应的内容
+indexes = np.linspace(0, len(op_prior), num=10, dtype=np.int32) #np.linspace 把op_prior的总长度等分成十份
+
+# initialize it with train dataset
+#把order信息附加到op_train中,成为 order_details
+order_details = pd.merge(
+                left=op_train,
+                 right=orders, 
+                 how='left', 
+                 on='order_id'
+        ).apply(partial(pd.to_numeric, errors='ignore', downcast='integer'))
+
+# add order hierarchy
+# goods = department + products
+# 只取其中的product, aisle, department id信息 合并到order_details 【train】
 order_details = pd.merge(
                 left=order_details,
                 right=goods[['product_id', 
@@ -69,16 +83,22 @@ order_details = pd.merge(
                 on='product_id'
 )
 
+print(order_details.shape, op_train.shape)
+
+
 # delete (redundant now) dataframes，删除op_train, 因为信息已经合并到order_details
 del op_train
 
 # update by small portions, 不太懂这一块，question asked
-for i in range(len(indexes)-1):
+for i in range(len(indexes)-1): #前面61行 np.linspace 把op_prior的总长度等分成十份，
+                                #此处按照这样的分割，一步一步update
     order_details = pd.concat(
         [   
             order_details,
-            pd.merge(left=pd.merge(
-                            left=op_prior.loc[indexes[i]:indexes[i+1], :],
+            pd.merge(left=pd.merge(                                        #dataframe.loc[] 
+                            left=op_prior.loc[indexes[i]:indexes[i+1], :], #Purely label-location based 
+                                                                           #indexer for selection by label.
+                                                                           #按照dataframe的index和label选？
                             right=goods[['product_id', 
                                          'aisle_id', 
                                          'department_id' ]].apply(partial(pd.to_numeric, 
@@ -93,6 +113,19 @@ for i in range(len(indexes)-1):
                 ) #.apply(partial(pd.to_numeric, errors='ignore', downcast='integer'))
         ]
     )
+        
+        
+print('Datafame length: {}'.format(order_details.shape[0]))
+print('Memory consumption: {:.2f} Mb'.format(sum(order_details.memory_usage(index=True, 
+                                                                         deep=True) / 2**20)))
+# check dtypes to see if we use memory effectively
+print(order_details.dtypes)
+
+# make sure we didn't forget to retain test dataset :D
+test_orders = orders[orders.eval_set == 'test']
+
+# delete (redundant now) dataframes
+del op_prior, orders
         
 print('Datafame length: {}'.format(order_details.shape[0]))
 print('Memory consumption: {:.2f} Mb'.format(sum(order_details.memory_usage(index=True, 
