@@ -20,9 +20,9 @@ warnings.filterwarnings('ignore') # silence annoying warnings
 
 
 #商品(Product)side:
-products = pd.read_csv('C:/Users/caoxun/Box Sync/kaggle/input/products.csv', engine='c')
-departments = pd.read_csv('C:/Users/caoxun/Box Sync/kaggle/input/departments.csv', engine='c')
-aisles = pd.read_csv('C:/Users/caoxun/Box Sync/kaggle/input/departments.csv', engine='c')
+products = pd.read_csv('C:/Users/Xun Cao/Box Sync/kaggle/input/products.csv', engine='c')
+departments = pd.read_csv('C:/Users/Xun Cao/Box Sync/kaggle/input/departments.csv', engine='c')
+aisles = pd.read_csv('C:/Users/Xun Cao/Box Sync/kaggle/input/departments.csv', engine='c')
                      
 #合并prduct, aisles, department, all left join to products, 保证products中的全部
 #合并后的变量成为goods
@@ -38,11 +38,20 @@ goods.head()
 
 
 #顾客(Order) Side
-orders = pd.read_csv('C:/Users/caoxun/Box Sync/kaggle/input/orders.csv', engine='c')
+orders = pd.read_csv('C:/Users/Xun Cao/Box Sync/kaggle/input/orders.csv', engine='c', dtype={'order_id': np.int32, 
+                                                           'user_id': np.int32, 
+                                                           'order_number': np.int32, 
+                                                           'order_dow': np.int8, 
+                                                           'order_hour_of_day': np.int8, 
+                                                           'days_since_prior_order': np.float16})
 #orders中有的变量： orderID, userID, eval_set(prior/train), order_number, orderdow(星期几)， orderHour, days_since_prior_order(和前一单之间隔了多久)
-op_prior = pd.read_csv('C:/Users/caoxun/Box Sync/kaggle/input/order_products__prior.csv', engine='c')
+op_prior = pd.read_csv('C:/Users/Xun Cao/Box Sync/kaggle//input/order_products__prior.csv', engine='c', 
+                       dtype={'order_id': np.int32, 
+                              'product_id': np.int32, 
+                              'add_to_cart_order': np.int16, 
+                              'reordered': np.int8})
 #OP_prior/train中有的变量： orderID, productID, addToCart, reorderd(1/0,这一单中的物品是否是之前（任何一单)曾经买过的）
-op_train = pd.read_csv('C:/Users/caoxun/Box Sync/kaggle/input/order_products__train.csv', engine='c')
+op_train = pd.read_csv('C:/Users/Xun Cao/Box Sync/kaggle/input/order_products__train.csv', engine='c')
 #OP_train 中的变量维度同上
 
 
@@ -89,7 +98,7 @@ print(order_details.shape, op_train.shape)
 # delete (redundant now) dataframes，删除op_train, 因为信息已经合并到order_details
 del op_train
 
-# update by small portions, 不太懂这一块，question asked
+# update by small portions, 为了“小跑”更快？
 for i in range(len(indexes)-1): #前面61行 np.linspace 把op_prior的总长度等分成十份，
                                 #此处按照这样的分割，一步一步update
     order_details = pd.concat(
@@ -98,7 +107,7 @@ for i in range(len(indexes)-1): #前面61行 np.linspace 把op_prior的总长度
             pd.merge(left=pd.merge(                                        #dataframe.loc[] 
                             left=op_prior.loc[indexes[i]:indexes[i+1], :], #Purely label-location based 
                                                                            #indexer for selection by label.
-                                                                           #按照dataframe的index和label选？
+                                                                           #按照dataframe的index和label选
                             right=goods[['product_id', 
                                          'aisle_id', 
                                          'department_id' ]].apply(partial(pd.to_numeric, 
@@ -118,23 +127,24 @@ for i in range(len(indexes)-1): #前面61行 np.linspace 把op_prior的总长度
 print('Datafame length: {}'.format(order_details.shape[0]))
 print('Memory consumption: {:.2f} Mb'.format(sum(order_details.memory_usage(index=True, 
                                                                          deep=True) / 2**20)))
+#Memory consumption: 3096.23 Mb, enough for cross validation latter
+
+
 # check dtypes to see if we use memory effectively
 print(order_details.dtypes)
 
-# make sure we didn't forget to retain test dataset :D
-test_orders = orders[orders.eval_set == 'test']
-
-# delete (redundant now) dataframes
-del op_prior, orders
-        
-print('Datafame length: {}'.format(order_details.shape[0]))
-print('Memory consumption: {:.2f} Mb'.format(sum(order_details.memory_usage(index=True, 
-                                                                         deep=True) / 2**20)))
-# check dtypes to see if we use memory effectively
-print(order_details.dtypes)
 
 # make sure we didn't forget to retain test dataset :D
-test_orders = orders[orders.eval_set == 'test']
+# orders
+print('Total orders: {}'.format(orders.shape[0]))
+print(orders.info())
+orders.head()
+#to reduce the memory consumption
+orders.eval_set = orders.eval_set.replace({'prior': 0, 'train': 1, 'test':2}).astype(np.int8)
+#前一步设置了test为2
+test_orders = orders[orders.eval_set == 2]
+
+
 
 # delete (redundant now) dataframes
 del op_prior, orders
