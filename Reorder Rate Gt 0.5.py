@@ -27,15 +27,22 @@ def GrabTestData():
     
     #grpids as a index for test set's prior orders
     orderstestprior['grpids'] = range(orderstestprior.shape[0])
+    #group by user id ,chose the largest 3 indexed order representing the last 3 orders
     grporderstestprior = orderstestprior.groupby(['user_id'])['grpids'].nlargest(int(nlargest)).reset_index()
+    #keep only the last 3 orders
     orderstestprior = orderstestprior[orderstestprior.grpids.isin(grporderstestprior.grpids)]
-    prior = pd.read_csv('C:/Users/caoxun/Box Sync/kaggle/input/order_products__prior.csv')
     orderstestprior.drop(['eval_set','grpids'],inplace=True,axis=1)
+    #product side
+    prior = pd.read_csv('C:/Users/caoxun/Box Sync/kaggle/input/order_products__prior.csv')
+    #merge the product info with the orer info, order id as the connection key
     orderstestprior = orderstestprior.merge(prior,on='order_id')
+    #if this prudct has been purchased by the same user before, reorder=1
     x = orderstestprior.groupby(['user_id','product_id'])['reordered'].mean().reset_index()
     x.columns = ['user_id','product_id','romean']
     x = x[x.romean>=.5]  
     suborderstest = orders[orders.eval_set=='test']
+    #for the test data set, find the user's purchased orders with reordering rate >0.5,
+    # merge by user id
     suborderstest.drop(['eval_set'],inplace=True,axis=1)
     suborderstest = suborderstest.merge(x,on=['user_id'])
     return suborderstest[['order_id','product_id']]
@@ -43,7 +50,9 @@ def GrabTestData():
 test = GrabTestData()
 sub = pd.read_csv('C:/Users/caoxun/Box Sync/kaggle/input/sample_submission.csv')
 
+#why build a dictionary
 d2 = dict()
+#Iterate over DataFrame rows as namedtuples, with index value as first element of the tuple.
 for row in test.itertuples():
     try:
         d2[row.order_id] += ' ' + str(row.product_id)
