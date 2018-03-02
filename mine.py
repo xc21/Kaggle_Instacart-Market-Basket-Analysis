@@ -98,7 +98,7 @@ print(order_details.shape, op_train.shape)
 # delete (redundant now) dataframes，删除op_train, 因为信息已经合并到order_details
 del op_train
 
-# update by small portions, 为了“小跑”更快？
+# update by small portions, 为了“小跑”更快
 for i in range(len(indexes)-1): #前面61行 np.linspace 把op_prior的总长度等分成十份，
                                 #此处按照这样的分割，一步一步update
     order_details = pd.concat(
